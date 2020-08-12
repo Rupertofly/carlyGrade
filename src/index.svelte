@@ -1,5 +1,6 @@
 <script lang="typescript">
   import { onMount } from 'svelte';
+  import Graph from './Graph.svelte';
   import Quest from './question.svelte';
   import { questionStore } from './store';
   let ping: any;
@@ -46,7 +47,7 @@
 </style>
 
 <main>
-
+  <Graph />
   <h2>Which is better?</h2>
   <Quest
     q={$questionStore.q}
