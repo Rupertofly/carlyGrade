@@ -34,7 +34,8 @@
     "webpack-dev-server": "^3.11.0"
   },
   "scripts": {
-    "dev": "webpack --mode development"
+    "build:dev": "webpack --mode development",
+    "dev": "webpack-dev-server --mode development --config ./webpack.config.ts --no-inline --content-base public"
   },
   "prettier": {
     "singleQuote": true

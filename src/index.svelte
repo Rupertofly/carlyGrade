@@ -1,8 +1,10 @@
 <script lang="typescript">
   import { onMount } from 'svelte';
+  import * as d3 from 'd3';
   import Graph from './Graph.svelte';
   import Quest from './question.svelte';
   import { questionStore } from './store';
+  import { randomUniform } from 'd3';
   let ping: any;
   let info: any;
   const newFunction = async () => {
@@ -17,38 +19,49 @@
     $questionStore = { a: 'a2', b: 'b2', q: 'secondOne' };
   };
   onMount(newFunction);
+  let links: any[] = [];
+
+  let kyle = d3.range(32).map((i) => ({
+    id: i.toString(),
+    name: i.toString(),
+    colour: `hsl(${i * 10},30%,70%)`,
+    x: 0,
+    y: 0,
+  }));
+  const nF = () => {
+    kyle = [
+      ...kyle,
+      {
+        id: kyle.length.toString(),
+        colour: `hsl(${(kyle.length * 32) % 360}, 30%, 50%)`,
+        name: 'blue' + kyle.length,
+        x: 0,
+        y: 0,
+      },
+    ];
+  };
+  setInterval(nF, 5200);
+
+  const addLink = () => {
+    let sc = '0';
+    let tg = '0';
+    sc = Math.floor(randomUniform(0, kyle.length)()).toString();
+    tg = Math.floor(randomUniform(0, kyle.length)()).toString();
+    if (sc === tg) return;
+    links = [...links, { source: sc, target: tg }];
+  };
+  setInterval(addLink, 1200);
 </script>
 
 <style>
-  :root {
-    background-color: #c2d8f2;
-  }
-  h1,
-  h2 {
-    font-family: 'Quicksand';
-    color: #d34f73;
-  }
 
-  h3 {
-    font-family: 'Work Sans';
-    color: #d34f73;
-  }
-  p {
-    font-family: 'Work Sans';
-  }
-  main {
-    padding: 1.5em;
-    margin-top: 8em;
-    background-color: #f4f4f4;
-    border-radius: 1em;
-    border: 4px solid #fafafa;
-    box-shadow: 0.25em 0.25em 0.5em #2c313755;
-  }
 </style>
 
 <main>
-  <Graph />
+  <Graph style="width: 100%; height: 100%" data={kyle} {links} />
   <h2>Which is better?</h2>
+  <button label="peep" on:click={nF}>peep</button>
+  <button label="poop" on:click={addLink}>poop</button>
   <Quest
     q={$questionStore.q}
     result={info}
