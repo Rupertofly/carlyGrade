@@ -7,12 +7,12 @@ interface Vector {
 function basicHeuristic<T extends Vector>(a: T, b: T) {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 }
-function aStar<SRC extends Vector>(
+export function aStar<SRC>(
   start: SRC,
   end: SRC,
   neighbourFunction: (id: SRC) => Iterable<SRC>,
   costFunction: (a: SRC, b: SRC) => number
-) {
+): SRC[] {
   const frontier = new PriorityQueue<SRC>();
 
   frontier.enqueue(start, 0);
@@ -30,7 +30,7 @@ function aStar<SRC extends Vector>(
 
       if (!cost.has(next) || newCost < cost.get(next)!) {
         cost.set(next, newCost);
-        const priority = newCost + basicHeuristic(end, next);
+        const priority = newCost;
 
         frontier.enqueue(next, priority);
         previous.set(next, current);
@@ -46,4 +46,14 @@ function aStar<SRC extends Vector>(
   }
 
   return path;
+}
+export function* mapIterator<T, D>(
+  iterator: Iterable<T>,
+  mapFunction: (t: T) => D
+): Iterable<D> {
+  for (const item of iterator) {
+    const tf = mapFunction(item);
+
+    yield tf;
+  }
 }

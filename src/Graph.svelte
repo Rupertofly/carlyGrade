@@ -5,21 +5,27 @@
   import { event as cEvent } from 'd3-selection';
   import { fade } from 'svelte/transition';
   import { SimulationNodeDatum, map } from 'd3';
+  import { Delaunay } from 'd3-delaunay';
+  import { aStar, mapIterator } from './astar';
+  import { loop_guard } from 'svelte/internal';
   export let data: Array<GraphData> = [];
   export let links: Array<LinkData> = [];
   let forceSimulation: GraphSim;
   let svg: SVGSVGElement;
   let tformG: SVGGElement;
   let transform = d3.zoomIdentity;
-  type opArr = (d3.SimulationNodeDatum & GraphData)[];
-  type lkArr = (d3.SimulationLinkDatum<GraphData & d3.SimulationNodeDatum> &
-    LinkData)[];
+  type opArr = GraphData[];
+  type lk = d3.SimulationLinkDatum<any> & LinkData;
 
+  interface Vector {
+    x: number;
+    y: number;
+  }
   function constrain(n: number) {
     return n < -50 ? -50 : n > 50 ? 50 : n;
   }
   let outputData: opArr;
-  let outputLinks: any[];
+  let outputLinks: lk[];
   function sU() {
     forceSimulation.tick();
     outputData = outputData.map((d) => {
@@ -33,7 +39,47 @@
       }
       return d;
     });
-    outputLinks = [...outputLinks];
+    const sq3 = Math.sqrt(3);
+    const graphPoints = [
+      ...outputData,
+      ...d3.range(0, 25).flatMap((q) =>
+        d3.range(0, 25).map((r) => ({
+          x: -50 + 4 * (sq3 * q + (sq3 / 2) * r),
+          y: -50 + 4 * ((3 / 2) * r),
+        }))
+      ),
+    ];
+    const graph = Delaunay.from(
+      graphPoints,
+      (d) => d?.x || 0,
+      (d) => d?.y || 0
+    );
+    outputLinks = [
+      ...outputLinks.map((link) => {
+        const p = aStar(
+          (link.source as any).index as number,
+          (link.target as any).index as number,
+          (d) => graph.neighbors(d),
+          (a, b) => (b < outputData.length ? 100 : 1)
+        );
+        console.log([p, link, graphPoints, graph]);
+        if (p.length <= 0) return link;
+        const path = d3.path();
+        const first = p.shift()!;
+        const fx = graphPoints[first].x || 0;
+        const fy = graphPoints[first].y || 0;
+        path.moveTo(fx, fy);
+        for (let i of p) {
+          if (!graphPoints[i]) break;
+          const x = graphPoints[i].x || 0;
+          const y = graphPoints[i].y || 0;
+          path.lineTo(x, y);
+        }
+        link.path = path.toString();
+
+        return link;
+      }),
+    ];
   }
 
   // Setup Zoom and Drag
@@ -154,12 +200,7 @@
     {transform.k})">
     <g class="links" stroke="#eee">
       {#each outputLinks as lk}
-        <line
-          transition:fade
-          x1={lk.source.x}
-          x2={lk.target.x}
-          y1={lk.source.y}
-          y2={lk.target.y} />
+        <path transition:fade d={lk.path} />
       {/each}
     </g>
     {#each outputData as dp (dp.id)}

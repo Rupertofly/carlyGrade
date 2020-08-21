@@ -5,11 +5,18 @@ export interface inputData {
   name: string;
   colour: string;
 }
+interface Vector {
+  x: number;
+  y: number;
+}
 export interface LinkData {
   source: string;
   target: string;
+  path?: string;
 }
+
 export type GraphSim = d3.Simulation<
   d3.SimulationNodeDatum & inputData,
   d3.SimulationLinkDatum<inputData & SimulationNodeDatum> & LinkData
 >;
+export type GraphData = inputData & d3.SimulationNodeDatum;
