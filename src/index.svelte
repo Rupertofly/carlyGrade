@@ -40,7 +40,6 @@
       },
     ];
   };
-  setInterval(nF, 5200);
 
   const addLink = () => {
     let sc = '0';
@@ -50,7 +49,6 @@
     if (sc === tg) return;
     links = [...links, { source: sc, target: tg }];
   };
-  setInterval(addLink, 1200);
 </script>
 
 <style>

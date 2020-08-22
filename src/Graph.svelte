@@ -1,6 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { GraphData, GraphSim, LinkData } from './types';
+  import type {
+    GraphData,
+    GraphSim,
+    LinkData,
+    inputData,
+    VPoint,
+  } from './types';
+  import * as h from '@rupertofly/h';
   import * as d3 from 'd3';
   import { event as cEvent } from 'd3-selection';
   import { fade } from 'svelte/transition';
@@ -14,9 +21,19 @@
   let svg: SVGSVGElement;
   let tformG: SVGGElement;
   let transform = d3.zoomIdentity;
-  type opArr = GraphData[];
-  type lk = d3.SimulationLinkDatum<any> & LinkData;
-
+  type opArr = inputData[];
+  const sq3 = Math.sqrt(3);
+  let fillPoints = d3.range(0, 100).map((i) => {
+    const q = Math.floor(i / 10);
+    const r = i % 10;
+    const x = -50 + -q + 2 * (sq3 * q + (sq3 / 2) * r);
+    const y = -50 + 2 * ((3 / 2) * r);
+    return {
+      x,
+      y,
+      index: i,
+    };
+  });
   interface Vector {
     x: number;
     y: number;
@@ -25,8 +42,9 @@
     return n < -50 ? -50 : n > 50 ? 50 : n;
   }
   let outputData: opArr;
-  let outputLinks: lk[];
+  let outputLinks: LinkData[];
   function sU() {
+    const hasLink = new Map<number, boolean>();
     forceSimulation.tick();
     outputData = outputData.map((d) => {
       if (d.x! < -50 || d.x! > 50) {
@@ -39,47 +57,54 @@
       }
       return d;
     });
-    const sq3 = Math.sqrt(3);
-    const graphPoints = [
-      ...outputData,
-      ...d3.range(0, 25).flatMap((q) =>
-        d3.range(0, 25).map((r) => ({
-          x: -50 + 4 * (sq3 * q + (sq3 / 2) * r),
-          y: -50 + 4 * ((3 / 2) * r),
-        }))
-      ),
-    ];
+
+    const graphPoints = [...outputData, ...fillPoints];
+
     const graph = Delaunay.from(
       graphPoints,
       (d) => d?.x || 0,
       (d) => d?.y || 0
     );
-    outputLinks = [
-      ...outputLinks.map((link) => {
-        const p = aStar(
-          (link.source as any).index as number,
-          (link.target as any).index as number,
-          (d) => graph.neighbors(d),
-          (a, b) => (b < outputData.length ? 100 : 1)
-        );
-        console.log([p, link, graphPoints, graph]);
-        if (p.length <= 0) return link;
-        const path = d3.path();
-        const first = p.shift()!;
-        const fx = graphPoints[first].x || 0;
-        const fy = graphPoints[first].y || 0;
-        path.moveTo(fx, fy);
-        for (let i of p) {
-          if (!graphPoints[i]) break;
-          const x = graphPoints[i].x || 0;
-          const y = graphPoints[i].y || 0;
-          path.lineTo(x, y);
+    const vor = graph.voronoi([-50, -50, 50, 50]);
+    fillPoints = fillPoints.map((pt, i) => {
+      const [cx, cy] = d3.polygonCentroid(
+        vor.cellPolygon(outputData.length + i) as [number, number][]
+      );
+      pt.index = outputData.length + i;
+      pt.x = cx;
+      pt.y = cy;
+      return pt;
+    }) as VPoint[];
+    outputLinks = outputLinks.map((link) => {
+      const p = aStar(
+        link.source as VPoint,
+        link.target as VPoint,
+        (d) =>
+          mapIterator(
+            graph.neighbors(d.index),
+            (i) => graphPoints[i] as VPoint
+          ),
+        (a, b) => {
+          const nextLink = hasLink.has(b.index);
+          const onLink = hasLink.has(a.index);
+          if (b.index < outputData.length) return 100;
+          if (nextLink && onLink) return 50;
+          if (nextLink) return 10;
+          return 1;
         }
-        link.path = path.toString();
+      );
+      for (let { index } of p) hasLink.set(index, true);
+      if (p.length <= 0) return link;
+      const path = d3.path();
 
-        return link;
-      }),
-    ];
+      h.drawLoop(
+        p.map((d) => [d.x, d.y]),
+        false,
+        path
+      );
+      link.path = path.toString();
+      return link;
+    });
   }
 
   // Setup Zoom and Drag
@@ -150,10 +175,10 @@
     inputLinks: Array<LinkData>
   ) {
     let sourceData = outputData ?? data.slice(0);
-    if (sourceData !== outputData) console.log('dateUpdated');
     function mergeDataCallback(data: GraphData) {
       return mergeGraphData(data, sourceData);
     }
+
     outputData = inputData.map(mergeDataCallback);
     outputLinks = links.map((o) => Object.create(o));
     forceSimulation = d3
@@ -168,7 +193,7 @@
           .forceLink<GraphData & SimulationNodeDatum, LinkData>()
           .id((n) => n.id)
           .links(outputLinks)
-          .strength(0.02)
+          .strength(0.002)
       )
       .force('centre', d3.forceCenter(0, 0))
       .on('tick', sU);
@@ -200,7 +225,7 @@
     {transform.k})">
     <g class="links" stroke="#eee">
       {#each outputLinks as lk}
-        <path transition:fade d={lk.path} />
+        <path transition:fade d={lk.path} fill="#0000" />
       {/each}
     </g>
     {#each outputData as dp (dp.id)}
@@ -214,6 +239,7 @@
           .brighter(0.4)
           .toString()}; stroke-width:0.75;" />
     {/each}
+    <g />
   </g>
 </svg>
 <svelte:options />

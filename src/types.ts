@@ -1,6 +1,6 @@
 import type * as d3 from 'd3';
 import { SimulationNodeDatum } from 'd3';
-export interface inputData {
+export interface inputData extends d3.SimulationNodeDatum {
   id: string;
   name: string;
   colour: string;
@@ -9,9 +9,10 @@ interface Vector {
   x: number;
   y: number;
 }
-export interface LinkData {
-  source: string;
-  target: string;
+export interface VPoint extends Vector {
+  index: number;
+}
+export interface LinkData extends d3.SimulationLinkDatum<inputData> {
   path?: string;
 }
 

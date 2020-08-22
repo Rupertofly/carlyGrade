@@ -16,7 +16,7 @@ export class PriorityQueue<T> extends Array<QElement<T>> {
         break;
       }
     }
-    if (!contain) this.push();
+    if (!contain) this.push(QE);
   }
   public dequeue(): QElement<T> {
     if (this.length == 0) {
