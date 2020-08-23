@@ -20,23 +20,30 @@
   };
   onMount(newFunction);
   let links: any[] = [];
+  const rType = d3.randomUniform(1, 4);
+  let kyle = d3.range(32).map((i) => {
+    const type = Math.floor(rType());
+    return {
+      id: i.toString(),
+      name: i.toString(),
+      colour: `hsl(${type * 70},50%,70%)`,
+      x: 0,
+      y: 0,
+      type,
+    };
+  });
 
-  let kyle = d3.range(32).map((i) => ({
-    id: i.toString(),
-    name: i.toString(),
-    colour: `hsl(${i * 10},30%,70%)`,
-    x: 0,
-    y: 0,
-  }));
   const nF = () => {
+    const type = Math.floor(rType());
     kyle = [
       ...kyle,
       {
         id: kyle.length.toString(),
-        colour: `hsl(${(kyle.length * 32) % 360}, 30%, 50%)`,
+        colour: `hsl(${type * 70}, 30%, 50%)`,
         name: 'blue' + kyle.length,
         x: 0,
         y: 0,
+        type: type,
       },
     ];
   };
