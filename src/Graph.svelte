@@ -5,7 +5,7 @@
   import * as h from '@rupertofly/h';
   import * as d3 from 'd3';
   import { event as cEvent } from 'd3-selection';
-  import { fade } from 'svelte/transition';
+  import { fade, draw, crossfade } from 'svelte/transition';
   import { SimulationNodeDatum, map } from 'd3';
   import { Delaunay } from 'd3-delaunay';
   import { aStar, mapIterator } from './astar';
@@ -18,9 +18,9 @@
   let transform = d3.zoomIdentity;
   type opArr = inputData[];
   const sq3 = Math.sqrt(3);
-  let fillPoints = d3.range(0, 200).map((i) => {
-    const q = Math.floor(i / 20);
-    const r = i % 20;
+  let fillPoints = d3.range(0, 324).map((i) => {
+    const q = Math.floor(i / 18);
+    const r = i % 18;
     const x = -50 + -q + 2 * (sq3 * q + (sq3 / 2) * r);
     const y = -50 + 2 * ((3 / 2) * r);
     return {
@@ -37,9 +37,11 @@
   function constrain(n: number) {
     return n < -50 ? -50 : n > 50 ? 50 : n;
   }
+  let redrawLines = false;
   let outputData: opArr;
   let outputLinks: LinkData[];
   let regis: { type: number; path: string }[] = [];
+  let frames = 0;
   function sU() {
     const hasLink = new Map<number, boolean>();
     forceSimulation.tick();
@@ -97,43 +99,47 @@
       pt.type = 0;
       return pt;
     }) as VPoint[];
-    outputLinks = outputLinks.map((link) => {
-      const p = aStar(
-        link.source as VPoint,
-        link.target as VPoint,
-        (d) =>
-          mapIterator(
-            graph.neighbors(d.index),
-            (i) => graphPoints[i] as VPoint
-          ),
-        (a, b) => {
-          const nextLink = hasLink.has(b.index);
-          const onLink = hasLink.has(a.index);
-          if (b.index < outputData.length) return 100;
-          if (nextLink && onLink) return 50;
-          if (nextLink) return 10;
-          return 1;
-        }
-      );
-      for (let { index } of p) hasLink.set(index, true);
-      if (p.length <= 0) return link;
-      const path = d3.path();
+    if ((frames % 3 === 0 && forceSimulation?.alpha() > 0.1) || redrawLines) {
+      outputLinks = outputLinks.map((link) => {
+        const p = aStar(
+          link.source as VPoint,
+          link.target as VPoint,
+          (d) =>
+            mapIterator(
+              graph.neighbors(d.index),
+              (i) => graphPoints[i] as VPoint
+            ),
+          (a, b) => {
+            const nextLink = hasLink.has(b.index);
+            const onLink = hasLink.has(a.index);
+            if (b.index < outputData.length) return 1000;
+            if (nextLink && onLink) return 20;
+            if (nextLink) return 5;
+            return 1;
+          }
+        );
+        for (let { index } of p) hasLink.set(index, true);
+        if (p.length <= 0) return link;
+        const path = d3.path();
 
-      h.drawLoop(
-        p.length > 3
-          ? h.spline(
-              p.map((pt) => [pt.x, pt.y] as [number, number]),
-              3,
-              false,
-              p.length * 6
-            )
-          : p.map((pt) => [pt.x, pt.y] as [number, number]),
-        false,
-        path
-      );
-      link.path = path.toString();
-      return link;
-    });
+        h.drawLoop(
+          p.length > 4
+            ? h.spline(
+                p.map((pt) => [pt.x, pt.y] as [number, number]),
+                4,
+                false,
+                p.length * 6
+              )
+            : p.map((pt) => [pt.x, pt.y] as [number, number]),
+          false,
+          path
+        );
+        link.path = path.toString();
+        return link;
+      });
+      redrawLines = false;
+    }
+    frames = frames + 1;
   }
 
   // Setup Zoom and Drag
@@ -210,11 +216,12 @@
 
     outputData = inputData.map(mergeDataCallback);
     outputLinks = links.map((o) => Object.create(o));
+    const oldAlpha = forceSimulation?.alpha() ?? -1;
     if (forceSimulation) forceSimulation.on('tick', null);
 
     forceSimulation = d3
       .forceSimulation(outputData)
-      .alphaTarget(0.1)
+      .alphaTarget(0)
       .force('charge', d3.forceManyBody().strength(-0.8))
       .force('friends', d3.forceManyBody().strength(1).distanceMin(50))
       .force('collide', d3.forceCollide(2))
@@ -224,11 +231,13 @@
           .forceLink<inputData & SimulationNodeDatum, LinkData>()
           .id((n) => n.id)
           .links(outputLinks)
-          .strength(0.002)
+          .strength(0.01)
       );
     if (!forceSimulation.on('tick')) {
       forceSimulation.on('tick', sU);
     }
+    if (oldAlpha >= 0) forceSimulation.alpha(oldAlpha);
+    redrawLines = true;
   }
 
   $: updateData(data, links);
@@ -274,12 +283,15 @@
       {/each}
     </g>
     <g class="links" stroke="#eee">
-      {#each outputLinks as lk}
-        <path
-          transition:fade
-          d={lk.path}
-          fill="#0000"
-          style="filter: url(#shadow);" />
+      {#each outputLinks as lk (lk.id)}
+        {#if lk.path}
+          <path
+            transition:draw
+            d={lk.path}
+            fill="transparent"
+            style="filter: url(#shadow);"
+            stroke={d3.interpolateLab(`hsl(${lk.source.type * 40},50%,85%)`, `hsl(${lk.target.type * 40},50%,85%)`)(0.5)} />
+        {/if}
       {/each}
     </g>
     <g>
@@ -289,7 +301,7 @@
           cx={dp.x}
           cy={dp.y}
           r={2}
-          style="fill: hsl({dp.type * 40},60%,55%);stroke:hsl({dp.type * 40},40%,85%);
+          style="fill: hsl({dp.type * 40},60%,65%);stroke:hsl({dp.type * 40},50%,85%);
           stroke-width:0.75;" />
       {/each}
     </g>

@@ -30,7 +30,7 @@ export function aStar<SRC>(
 
       if (!cost.has(next) || newCost < cost.get(next)!) {
         cost.set(next, newCost);
-        const priority = newCost;
+        const priority = newCost + basicHeuristic(current as any, next as any);
 
         frontier.enqueue(next, priority);
         previous.set(next, current);

@@ -5,6 +5,7 @@
   import Quest from './question.svelte';
   import { questionStore } from './store';
   import { randomUniform } from 'd3';
+  import { LinkData } from './types';
   let ping: any;
   let info: any;
   const newFunction = async () => {
@@ -19,7 +20,7 @@
     $questionStore = { a: 'a2', b: 'b2', q: 'secondOne' };
   };
   onMount(newFunction);
-  let links: any[] = [];
+  let links: LinkData[] = [];
   const rType = d3.randomUniform(1, 10);
   let kyle = d3.range(32).map((i) => {
     const type = Math.floor(rType());
@@ -54,7 +55,10 @@
     sc = Math.floor(randomUniform(0, kyle.length)()).toString();
     tg = Math.floor(randomUniform(0, kyle.length)()).toString();
     if (sc === tg) return;
-    links = [...links, { source: sc, target: tg }];
+    links = [
+      ...links,
+      { source: sc as any, target: tg as any, id: `${sc},${tg}` } as LinkData,
+    ];
   };
 </script>
 

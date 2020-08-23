@@ -16,6 +16,9 @@ export interface VPoint extends Vector {
 }
 export interface LinkData extends d3.SimulationLinkDatum<inputData> {
   path?: string;
+  source: inputData;
+  target: inputData;
+  id?: string;
 }
 
 export type GraphSim = d3.Simulation<
