@@ -20,13 +20,13 @@
   };
   onMount(newFunction);
   let links: any[] = [];
-  const rType = d3.randomUniform(1, 4);
+  const rType = d3.randomUniform(1, 10);
   let kyle = d3.range(32).map((i) => {
     const type = Math.floor(rType());
     return {
       id: i.toString(),
       name: i.toString(),
-      colour: `hsl(${type * 70},50%,70%)`,
+      colour: `hsl(${type * 30},50%,70%)`,
       x: 0,
       y: 0,
       type,
@@ -39,7 +39,7 @@
       ...kyle,
       {
         id: kyle.length.toString(),
-        colour: `hsl(${type * 70}, 30%, 50%)`,
+        colour: `hsl(${type * 30}, 30%, 50%)`,
         name: 'blue' + kyle.length,
         x: 0,
         y: 0,

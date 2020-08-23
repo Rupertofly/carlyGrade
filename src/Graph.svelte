@@ -71,6 +71,7 @@
     regis = Array.from(myReg)
       .map((r) => {
         if (r.region.type < 1) return false;
+        if (r.region.members.size < 2) return false;
         const pth = d3.path();
         h.drawShape(
           r.shape.map((lp) => {
@@ -209,10 +210,12 @@
 
     outputData = inputData.map(mergeDataCallback);
     outputLinks = links.map((o) => Object.create(o));
+    if (forceSimulation) forceSimulation.on('tick', null);
+
     forceSimulation = d3
       .forceSimulation(outputData)
       .alphaTarget(0.1)
-      .force('charge', d3.forceManyBody().strength(-0.6))
+      .force('charge', d3.forceManyBody().strength(-0.8))
       .force('friends', d3.forceManyBody().strength(1).distanceMin(50))
       .force('collide', d3.forceCollide(2))
       .force(
@@ -222,8 +225,10 @@
           .id((n) => n.id)
           .links(outputLinks)
           .strength(0.002)
-      )
-      .on('tick', sU);
+      );
+    if (!forceSimulation.on('tick')) {
+      forceSimulation.on('tick', sU);
+    }
   }
 
   $: updateData(data, links);
@@ -244,6 +249,16 @@
   viewBox="-50 -50 100 100"
   {...$$restProps}
   bind:this={svg}>
+  <defs>
+    <filter id="shadow">
+      <feDropShadow
+        dx="0.2"
+        dy="0.4"
+        stdDeviation="0.2"
+        flood-colour="#333"
+        flood-opacity="0.1" />
+    </filter>
+  </defs>
   <g
     id="transform"
     bind:this={tformG}
@@ -254,13 +269,17 @@
       {#each regis as region}
         <path
           d={region.path}
-          fill="hsl({region.type * 70},40%,75%)"
-          stroke="hsl({region.type * 70},35%,80%)" />
+          fill="hsl({region.type * 40},40%,75%)"
+          stroke="hsl({region.type * 40},35%,80%)" />
       {/each}
     </g>
     <g class="links" stroke="#eee">
       {#each outputLinks as lk}
-        <path transition:fade d={lk.path} fill="#0000" />
+        <path
+          transition:fade
+          d={lk.path}
+          fill="#0000"
+          style="filter: url(#shadow);" />
       {/each}
     </g>
     <g>
@@ -270,7 +289,7 @@
           cx={dp.x}
           cy={dp.y}
           r={2}
-          style="fill: hsl({dp.type * 70},60%,55%);stroke:hsl({dp.type * 70},40%,85%);
+          style="fill: hsl({dp.type * 40},60%,55%);stroke:hsl({dp.type * 40},40%,85%);
           stroke-width:0.75;" />
       {/each}
     </g>
