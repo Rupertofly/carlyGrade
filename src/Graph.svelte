@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { GraphSim, LinkData, inputData, VPoint } from './types';
+  import { cellUpdate } from './cellTypeChange';
   import * as vr from '@rupertofly/voronoi-regions';
   import * as h from '@rupertofly/h';
   import * as d3 from 'd3';
@@ -64,6 +65,9 @@
       (d) => d?.x || 0,
       (d) => d?.y || 0
     );
+    const newTypes = graphPoints.map((pt, i) =>
+      cellUpdate(pt, graphPoints, graph.neighbors(i))
+    );
     const vor = graph.voronoi([-50, -50, 50, 50]);
     const myReg = vr.voronoiRegions<VPoint, number>(
       vor,
@@ -73,7 +77,14 @@
     regis = Array.from(myReg)
       .map((r) => {
         if (r.region.type < 1) return false;
-        if (r.region.members.size < 2) return false;
+        if (
+          ![...r.region.members.values()].some((d) => d < outputData.length)
+        ) {
+          for (let i of r.region.members) {
+            newTypes[i] = 0;
+          }
+          return false;
+        }
         const pth = d3.path();
         h.drawShape(
           r.shape.map((lp) => {
@@ -96,7 +107,7 @@
       pt.index = outputData.length + i;
       pt.x = cx;
       pt.y = cy;
-      pt.type = 0;
+      pt.type = newTypes[pt.index];
       return pt;
     }) as VPoint[];
     if ((frames % 3 === 0 && forceSimulation?.alpha() > 0.1) || redrawLines) {
@@ -115,6 +126,11 @@
             if (b.index < outputData.length) return 1000;
             if (nextLink && onLink) return 20;
             if (nextLink) return 5;
+            if (
+              (b.type !== link.source.type || b.type !== link.target.type) &&
+              b.type > 0
+            )
+              return 3;
             return 1;
           }
         );
@@ -221,7 +237,7 @@
 
     forceSimulation = d3
       .forceSimulation(outputData)
-      .alphaTarget(0)
+      .alphaTarget(0.1)
       .force('charge', d3.forceManyBody().strength(-0.8))
       .force('friends', d3.forceManyBody().strength(1).distanceMin(50))
       .force('collide', d3.forceCollide(2))
@@ -274,7 +290,7 @@
     transform="translate({transform.x}
     {transform.y}) scale({transform.k}
     {transform.k})">
-    <g>
+    <g id="regions">
       {#each regis as region}
         <path
           d={region.path}
